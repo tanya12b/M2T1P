@@ -1,0 +1,98 @@
+
+#include <chrono>     // Library for timing
+#include <fstream>    // Library for file operations
+#include <iostream>   // Standard input/output library
+#include <pthread.h>  // Library for pthreads (POSIX threads)
+#include <random>     // Library for random number generation
+
+using namespace std;         // Standard C++ namespace
+using namespace std::chrono; // Namespace for the chrono library
+
+const int N = 1000;                // Size of the matrices
+const int BLOCK_SIZE = 50;         // Size of each block
+const int NUM_THREADS = (N * N) / (BLOCK_SIZE * BLOCK_SIZE); // Number of threads
+
+int A[N][N], B[N][N], C[N][N]; // Matrices to multiply
+int current_block = 0;         // Current block being calculated
+pthread_mutex_t mutex_current_block = PTHREAD_MUTEX_INITIALIZER; // Mutex for the current block
+
+// Function to initialize a matrix with random values
+void init_matrix(int mat[][N]) {
+    random_device rd;        // Random device for seeding the generator
+    mt19937 gen(rd());       // Mersenne Twister 19937 generator
+    uniform_int_distribution<int> dist(1, 10); // Uniform distribution for integers from 1 to 10
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < N; ++j) {
+            mat[i][j] = dist(gen); // Assign a random value to each element
+        }
+    }
+}
+
+// Function to perform matrix multiplication for a block
+void *matrix_multiply(void *arg) {
+    int id = *((int *)arg); // Get thread id from argument
+    int block_start_row, block_start_col, block_end_row, block_end_col;
+    
+    while (true) { // Loop to multiply matrix blocks
+        pthread_mutex_lock(&mutex_current_block); // Lock mutex for accessing shared variable
+        if (current_block >= NUM_THREADS) { // Check if all blocks have been multiplied
+            pthread_mutex_unlock(&mutex_current_block); // Unlock mutex before breaking loop
+            break;
+        }
+        block_start_row = (current_block / (N / BLOCK_SIZE)) * BLOCK_SIZE; // Calculate start row of block
+        block_start_col = (current_block % (N / BLOCK_SIZE)) * BLOCK_SIZE; // Calculate start column of block
+        block_end_row = block_start_row + BLOCK_SIZE; // Calculate end row of block
+        block_end_col = block_start_col + BLOCK_SIZE; // Calculate end column of block
+        current_block++; // Move to the next block
+        pthread_mutex_unlock(&mutex_current_block); // Unlock mutex after accessing shared variable
+        
+        // Perform matrix multiplication for the current block
+        for (int i = block_start_row; i < block_end_row; ++i) {
+            for (int j = block_start_col; j < block_end_col; ++j) {
+                C[i][j] = 0; // Initialize the element in the result matrix
+                for (int k = 0; k < N; ++k) {
+                    C[i][j] += A[i][k] * B[k][j]; // Perform the dot product
+                }
+            }
+        }
+    }
+    return NULL; // Return from the thread
+}
+
+// Main function
+int main() {
+    init_matrix(A); // Initialize matrix A with random values
+    init_matrix(B); // Initialize matrix B with random values
+    
+    pthread_t threads[NUM_THREADS]; // Array of thread identifiers
+    int thread_ids[NUM_THREADS]; // Array of thread ids
+    
+    // Create threads for matrix multiplication
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        thread_ids[i] = i; // Assign a thread id
+        pthread_create(&threads[i], NULL, matrix_multiply, (void *)&thread_ids[i]); // Create a thread
+    }
+
+    auto start_time = high_resolution_clock::now(); // Record the start time
+
+    // Join threads to wait for their completion
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        pthread_join(threads[i], NULL); // Wait for a thread to finish
+    }
+
+    auto end_time = high_resolution_clock::now(); // Record the end time
+    auto duration = duration_cast<microseconds>(end_time - start_time); // Calculate the duration
+    
+    ofstream fout("output.txt"); // Create an output file stream
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < N; ++j) {
+            fout << C[i][j] << " "; // Write the element to the file
+        }
+        fout << "\n"; // Move to the next line
+    }
+    fout.close(); // Close the file stream
+
+    cout << "Execution time: " << duration.count() << " microseconds" << endl; // Print the execution time
+
+    return 0; // Return from the program
+}
