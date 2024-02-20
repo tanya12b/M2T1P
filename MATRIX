@@ -1,0 +1,83 @@
+#include <iostream> // Library for input and output
+#include <fstream> // Library for file input and output
+#include <chrono> // Library for time measurement
+#include <random> // Library for random number generation
+
+using namespace std; // Use the standard namespace
+
+// Function to print a matrix
+void printMatrix(double** matrix, int size) { // Function signature
+    for (int i = 0; i < size; i++) { // Loop over each row of the matrix
+        for (int j = 0; j < size; j++) { // Loop over each column of the matrix
+            cout << matrix[i][j] << " "; // Print each element of the matrix with a space separator
+        }
+        cout << endl; // Start a new line after each row
+    }
+}
+
+// Function to multiply two matrices
+void multiplyMatrices(double** A, double** B, double** C, int size) { // Function signature
+    for (int i = 0; i < size; i++) { // Loop over each row of the resulting matrix
+        for (int j = 0; j < size; j++) { // Loop over each column of the resulting matrix
+            double sum = 0; // Initialize a variable to store the sum
+            for (int k = 0; k < size; k++) { // Loop over each element of the row of matrix A and the column of matrix B
+                sum += A[i][k] * B[k][j]; // Compute the dot product of the i-th row of A and the j-th column of B
+            }
+            C[i][j] = sum; // Store the result in the i-th row and j-th column of C
+        }
+    }
+}
+
+int main() { // Main function
+    int size = 1000; // Set the size of the matrices
+    
+    // Allocate memory for matrices A, B, and C
+    double** A = new double*[size]; // Allocate memory for the rows of matrix A
+    double** B = new double*[size]; // Allocate memory for the rows of matrix B
+    double** C = new double*[size]; // Allocate memory for the rows of matrix C
+    for (int i = 0; i < size; i++) { // Loop over each row of the matrices
+        A[i] = new double[size]; // Allocate memory for the columns of matrix A
+        B[i] = new double[size]; // Allocate memory for the columns of matrix B
+        C[i] = new double[size]; // Allocate memory for the columns of matrix C
+    }
+    
+    // Initialize matrices A and B with random values
+    random_device rd; // Create a random number generator
+    mt19937 gen(rd()); // Use the random device to seed the generator
+    uniform_real_distribution<> dis(-10, 10); // Define the range of the random numbers
+    for (int i = 0; i < size; i++) { // Loop over each row of the matrices
+        for (int j = 0; j < size; j++) { // Loop over each column of the matrices
+            A[i][j] = dis(gen); // Assign a random value to each element of A
+            B[i][j] = dis(gen); // Assign a random value to each element of B
+        }
+    }
+    
+    // Multiply matrices A and B and measure execution time
+    auto start = chrono::high_resolution_clock::now(); // Record the start time
+    multiplyMatrices(A, B, C, size); // Multiply matrices A and B and store the result in C
+    auto end = chrono::high_resolution_clock::now(); // Record the end time
+    auto duration = chrono::duration_cast<chrono::milliseconds>(end - start); // Calculate the duration of the multiplication
+    cout << "Execution time: " << duration.count() << " milliseconds" << endl; // Print the duration of the multiplication
+    
+    // Write output to file
+    ofstream output("output.txt"); // Open a file stream for writing
+    for (int i = 0; i < size; i++) { // Loop over each row of the resulting matrix
+        for (int j = 0; j < size; j++) { // Loop over each column of the resulting matrix
+            output << C[i][j] << " "; // Write each element of C to the file with a space separator
+        }
+        output << endl; // Start a new line after each row
+    }
+    output.close(); // Close the file stream
+    
+    // Free memory for matrices A, B, and C
+    for (int i = 0; i < size; i++) { // Loop over each row of the matrices
+        delete[] A[i]; // Delete the columns of matrix A
+        delete[] B[i]; // Delete the columns of matrix B
+        delete[] C[i]; // Delete the columns of matrix C
+    }
+    delete[] A; // Delete the rows of matrix A
+    delete[] B; // Delete the rows of matrix B
+    delete[] C; // Delete the rows of matrix C
+    
+    return 0; // Exit the program
+}
