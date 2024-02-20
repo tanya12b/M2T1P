@@ -1,0 +1,85 @@
+#include <iostream> // For input and output
+#include <fstream> // For file input/output
+#include <chrono> // For time measurement
+#include <random> // For random number generation
+#include <omp.h> // For OpenMP parallelization
+
+using namespace std; // Use the standard namespace
+
+// Function to print a matrix
+void printMatrix(double** matrix, int size) { // Function signature
+    for (int i = 0; i < size; i++) { // Loop over each row
+        for (int j = 0; j < size; j++) { // Loop over each column
+            cout << matrix[i][j] << " "; // Print each element
+        }
+        cout << endl; // Print a newline after each row
+    }
+}
+
+// Function to multiply two matrices
+void multiplyMatrices(double** A, double** B, double** C, int size) { // Function signature
+    #pragma omp parallel for // Parallelize the outer loop
+    for (int i = 0; i < size; i++) { // Loop over each row of C
+        for (int j = 0; j < size; j++) { // Loop over each column of C
+            double sum = 0; // Initialize the sum
+            for (int k = 0; k < size; k++) { // Loop over each element of the row of A and the column of B
+                sum += A[i][k] * B[k][j]; // Compute the dot product
+            }
+            C[i][j] = sum; // Store the result in C
+        }
+    }
+}
+
+int main() { // Main function
+    int size = 1000; // Set the size of the matrices
+    
+    // Allocate memory for matrices A, B, and C
+    double** A = new double*[size]; // Allocate memory for the rows of A
+    double** B = new double*[size]; // Allocate memory for the rows of B
+    double** C = new double*[size]; // Allocate memory for the rows of C
+    for (int i = 0; i < size; i++) { // Loop over each row
+        A[i] = new double[size]; // Allocate memory for the columns of A
+        B[i] = new double[size]; // Allocate memory for the columns of B
+        C[i] = new double[size]; // Allocate memory for the columns of C
+    }
+    
+    // Initialize matrices A and B with random values
+    random_device rd; // Random number generator
+    mt19937 gen(rd()); // Seed the generator
+    uniform_real_distribution<> dis(-10, 10); // Define the range of the random numbers
+    for (int i = 0; i < size; i++) { // Loop over each row
+        for (int j = 0; j < size; j++) { // Loop over each column
+            A[i][j] = dis(gen); // Assign a random value to each element of A
+            B[i][j] = dis(gen); // Assign a random value to each element of B
+        }
+    }
+    
+    // Multiply matrices A and B and measure execution time
+    auto start = chrono::high_resolution_clock::now(); // Record the start time
+    multiplyMatrices(A, B, C, size); // Multiply matrices A and B and store the result in C
+    auto end = chrono::high_resolution_clock::now(); // Record the end time
+    auto duration = chrono::duration_cast<chrono::milliseconds>(end - start); // Calculate the duration of the multiplication
+    cout << "Execution time: " << duration.count() << " milliseconds" << endl; // Print the duration of the multiplication
+    
+    // Write output to file
+    ofstream output("output.txt"); // Open a file stream for writing
+    for (int i = 0; i < size; i++) { // Loop over each row
+        for (int j = 0; j < size; j++) { // Loop over each column
+            output << C[i][j] << " "; // Write each element of C to the file with a space separator
+        }
+        output << endl; // Start a new line after each row
+    }
+    output.close(); // Close the file stream
+    
+    // Free memory for matrices A, B, and C
+    for (int i = 0; i < size; i++) { // Loop over each row
+        delete[] A[i]; // Delete the columns of A
+        delete[] B[i]; // Delete the columns of B
+        delete[] C[i]; // Delete the columns of C
+    }
+    delete[] A; // Delete the rows of A
+    delete[] B; // Delete the rows of B
+    delete[] C; // Delete the rows of C
+    
+    return 0; // Exit the program
+}
